@@ -1,58 +1,64 @@
 package ru.netology.servlet;
 
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import ru.netology.config.JavaConfig;
 import ru.netology.controller.PostController;
 import ru.netology.exception.NotFoundException;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 
 public class MainServlet extends HttpServlet {
-  PostController postController;
-  public static final String API_POSTS = "/api/posts";
-  public static final String API_POSTS_D = "/api/posts/\\d+";
-  public static final String STR = "/";
-  public static final String GET_METHOD = "GET";
-  public static final String POST_METHOD = "POST";
-  public static final String DELETE_METHOD = "DELETE";
+
+  private final String GET = "GET";
+  private final String POST = "POST";
+  private final String DELETE = "DELETE";
+  private final String PATH = "/api/posts";
+  private final String PATH_ID = "/\\d+";
+  private PostController controller;
 
   @Override
   public void init() {
-    final var context = new AnnotationConfigApplicationContext("ru.netology");
-    postController = context.getBean(PostController.class);
+    final var context = new AnnotationConfigApplicationContext(JavaConfig.class);
+    controller = context.getBean(PostController.class);
   }
 
   @Override
-  protected void service(HttpServletRequest req, HttpServletResponse response) {
+  protected void service(HttpServletRequest req, HttpServletResponse resp) {
+    // если деплоились в root context, то достаточно этого
     try {
       final var path = req.getRequestURI();
       final var method = req.getMethod();
-
-      if (method.equals(GET_METHOD) && path.equals(API_POSTS)) {
-        postController.all(response);
+      System.out.println(path);
+      // primitive routing
+      if (method.equals(GET) && path.equals(PATH)) {
+        controller.all(resp);
         return;
       }
-      if (method.equals(GET_METHOD) && path.matches(API_POSTS_D)) {
-        final var id = Long.parseLong(path.substring(path.lastIndexOf(STR) + 1));
-        postController.getById(id, response);
+      if (method.equals(GET) && path.matches(PATH + PATH_ID)) {
+        // easy way
+        final var id = Long.parseLong(path.substring(path.lastIndexOf("/") + 1));
+        controller.getById(id, resp);
         return;
       }
-      if (method.equals(POST_METHOD) && path.equals(API_POSTS)) {
-        postController.save(req.getReader(), response);
+      if (method.equals(POST) && path.equals(PATH)) {
+        controller.save(req.getReader(), resp);
+        return;
       }
-      if (method.equals(DELETE_METHOD) && path.matches(API_POSTS_D)) {
-        final var id = Long.parseLong(path.substring(path.lastIndexOf(STR) + 1));
-        postController.removeById(id, response);
+      if (method.equals(DELETE) && path.matches(PATH + PATH_ID)) {
+        // easy way
+        final var id = Long.parseLong(path.substring(path.lastIndexOf("/") + 1));
+        controller.removeById(id, resp);
+        return;
       }
-      response.setStatus(response.SC_OK);
+      resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
     } catch (NotFoundException e) {
-      e.getMessage();
-      response.setStatus(response.SC_NOT_FOUND);
-    } catch (IOException ioException) {
-      ioException.getMessage();
-      response.setStatus(response.SC_INTERNAL_SERVER_ERROR);
+      e.printStackTrace();
+      resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
+    } catch (Exception e) {
+      e.printStackTrace();
+      resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
   }
 }
